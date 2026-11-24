@@ -31,12 +31,9 @@
         "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI",
         Roboto, sans-serif;
 
-      /* JS에서 실시간 갱신되는 3D 틸트 및 빛 반사 변수 */
+      /* JS에서 실시간 갱신되는 3D 틸트 변수 */
       --tilt-x: 0deg;
       --tilt-y: 0deg;
-      --glare-x: 50%;
-      --glare-y: 50%;
-      --glare-opacity: 0;
 
       --radius-card: 20px;
       --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
@@ -227,31 +224,6 @@
       pointer-events: none;
       z-index: 1;
       opacity: 0.11;
-    }
-
-    /* 무광 고급지 빛 반사(Paper Sheen) 레이어 */
-    .card-glare {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      z-index: 10;
-      opacity: var(--glare-opacity);
-      transition: opacity var(--dur-smooth) var(--ease-smooth);
-      background:
-        radial-gradient(
-          circle 260px at var(--glare-x) var(--glare-y),
-          rgba(255, 255, 255, 0.85) 0%,
-          rgba(255, 255, 255, 0.32) 34%,
-          rgba(31, 58, 95, 0.03) 62%,
-          transparent 80%
-        ),
-        linear-gradient(
-          120deg,
-          rgba(31, 58, 95, 0.03) 0%,
-          rgba(255, 255, 255, 0.45) 46%,
-          rgba(255, 255, 255, 0.12) 56%,
-          rgba(31, 58, 95, 0.04) 100%
-        );
     }
 
     /* 카드 내부 콘텐츠는 패턴 위에 배치 */
@@ -753,10 +725,6 @@
         transform: none !important;
       }
 
-      .card-glare {
-        display: none !important;
-      }
-
       .card-flipper {
         transition: none;
         transform: none !important;
@@ -843,7 +811,6 @@
               </defs>
               <g id="pattern-lines-front" fill="none" stroke="url(#lineGradFront)" stroke-width="0.75"></g>
             </svg>
-            <div class="card-glare" aria-hidden="true"></div>
 
             <div class="card-content">
               <div class="front-top">
@@ -897,7 +864,6 @@
               </defs>
               <g id="pattern-lines-back" fill="none" stroke="url(#lineGradBack)" stroke-width="0.75"></g>
             </svg>
-            <div class="card-glare" aria-hidden="true"></div>
 
             <div class="card-content">
               <header class="back-top">
@@ -1169,25 +1135,19 @@
       });
 
       /* -------------------------------------------------------
-         5. 마우스(PC) 및 기울기 센서(모바일) 3D 틸트 + 빛 반사
+         5. 마우스(PC) 및 기울기 센서(모바일) 3D 틸트
          ------------------------------------------------------- */
       const MAX_TILT = 11;
       let targetTiltX = 0;
       let targetTiltY = 0;
       let currentTiltX = 0;
       let currentTiltY = 0;
-      let targetGlareX = 50;
-      let targetGlareY = 50;
-      let targetGlareOpacity = 0;
       let tiltRafId = null;
 
-      function applyTiltVars(tx, ty, gx, gy, op) {
+      function applyTiltVars(tx, ty) {
         const rootStyle = cardTilt.style;
         rootStyle.setProperty("--tilt-x", `${tx.toFixed(2)}deg`);
         rootStyle.setProperty("--tilt-y", `${ty.toFixed(2)}deg`);
-        rootStyle.setProperty("--glare-x", `${gx.toFixed(1)}%`);
-        rootStyle.setProperty("--glare-y", `${gy.toFixed(1)}%`);
-        rootStyle.setProperty("--glare-opacity", op.toFixed(2));
       }
 
       function resetTiltImmediate() {
@@ -1195,8 +1155,7 @@
         targetTiltY = 0;
         currentTiltX = 0;
         currentTiltY = 0;
-        targetGlareOpacity = 0;
-        applyTiltVars(0, 0, 50, 50, 0);
+        applyTiltVars(0, 0);
       }
 
       function animateTilt() {
@@ -1209,25 +1168,20 @@
         currentTiltX += (targetTiltX - currentTiltX) * ease;
         currentTiltY += (targetTiltY - currentTiltY) * ease;
 
-        applyTiltVars(
-          currentTiltX,
-          currentTiltY,
-          targetGlareX,
-          targetGlareY,
-          targetGlareOpacity
-        );
+        applyTiltVars(currentTiltX, currentTiltY);
 
         const settled =
           Math.abs(targetTiltX - currentTiltX) < 0.02 &&
           Math.abs(targetTiltY - currentTiltY) < 0.02 &&
-          targetGlareOpacity === 0;
+          targetTiltX === 0 &&
+          targetTiltY === 0;
 
         if (!settled) {
           tiltRafId = window.requestAnimationFrame(animateTilt);
         } else {
           currentTiltX = 0;
           currentTiltY = 0;
-          applyTiltVars(0, 0, 50, 50, 0);
+          applyTiltVars(0, 0);
           tiltRafId = null;
         }
       }
@@ -1248,10 +1202,6 @@
         targetTiltY = (relX - 0.5) * 2 * MAX_TILT;
         targetTiltX = (0.5 - relY) * 2 * MAX_TILT;
 
-        targetGlareX = (isFlipped ? 1 - relX : relX) * 100;
-        targetGlareY = relY * 100;
-        targetGlareOpacity = 0.95;
-
         startTiltLoop();
       });
 
@@ -1259,7 +1209,6 @@
         if (event.pointerType !== "mouse") return;
         targetTiltX = 0;
         targetTiltY = 0;
-        targetGlareOpacity = 0;
         startTiltLoop();
       });
 
@@ -1284,13 +1233,6 @@
 
         targetTiltY = normX * MAX_TILT;
         targetTiltX = -normY * MAX_TILT;
-
-        const glareNormX = (normX + 1) / 2;
-        const glareNormY = (normY + 1) / 2;
-
-        targetGlareX = (isFlipped ? 1 - glareNormX : glareNormX) * 100;
-        targetGlareY = glareNormY * 100;
-        targetGlareOpacity = Math.min(0.9, Math.hypot(normX, normY) * 0.95);
 
         startTiltLoop();
       }
