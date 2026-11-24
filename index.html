@@ -3,63 +3,87 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>손동욱 — 웹 명함</title>
+  <title>손동욱 · 기획</title>
   <style>
+    /* =========================================================
+       1. 디자인 토큰 (Design Tokens)
+       - 주색 #1F3A5F 잉크와 하얀색 고급 코튼 종이명함 질감 구현
+       ========================================================= */
     :root {
       --primary: #1F3A5F;
-      --primary-light: #2E5283;
+      --primary-bright: #2F5588;
       --primary-soft: rgba(31, 58, 95, 0.06);
       --primary-border: rgba(31, 58, 95, 0.12);
-      --text-main: #182230;
-      --text-sub: #536173;
-      --text-muted: #8492A6;
-      --card-bg: rgba(255, 255, 255, 0.94);
-      --card-border: rgba(255, 255, 255, 0.85);
-      --shadow-ambient:
-        0 4px 12px rgba(31, 58, 95, 0.04),
-        0 18px 40px -10px rgba(31, 58, 95, 0.09),
-        0 32px 64px -20px rgba(31, 58, 95, 0.07);
-      --shadow-hover:
-        0 6px 16px rgba(31, 58, 95, 0.05),
-        0 24px 48px -12px rgba(31, 58, 95, 0.12),
-        0 40px 72px -24px rgba(31, 58, 95, 0.09);
-      --radius-card: 28px;
+      --accent-line: #4A73A8;
+
+      --bg-stage: #EDF1F6;
+      --paper-top: #FFFFFF;
+      --paper-mid: #FDFDFB;
+      --paper-bottom: #F6F5F1;
+
+      --text-ink: #182538;
+      --text-soft: #4B5B70;
+      --text-muted: #7C8B9E;
+      --border-card: rgba(31, 58, 95, 0.1);
+      --border-inner: rgba(31, 58, 95, 0.1);
+
+      --font-sans: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic",
+        "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, sans-serif;
+
+      /* JS에서 실시간 갱신되는 3D 틸트 및 빛 반사 변수 */
+      --tilt-x: 0deg;
+      --tilt-y: 0deg;
+      --glare-x: 50%;
+      --glare-y: 50%;
+      --glare-opacity: 0;
+
+      --radius-card: 20px;
       --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
-      --dur-smooth: 0.42s;
+      --dur-smooth: 0.44s;
     }
 
-    *, *::before, *::after {
+    /* =========================================================
+       2. 기본 리셋 및 밝은 파스텔 책상 배경 (모바일 390px 우선)
+       ========================================================= */
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
-      min-height: 100%;
+      max-width: 100%;
       overflow-x: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
-      color: var(--text-main);
+      min-height: 100dvh;
+      font-family: var(--font-sans);
+      color: var(--text-ink);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      word-break: keep-all;
     }
 
     body {
-      min-height: 100dvh;
+      background-color: var(--bg-stage);
+      background-image:
+        radial-gradient(ellipse 65% 55% at 18% 15%, rgba(219, 234, 254, 0.72) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 85% 20%, rgba(243, 232, 255, 0.58) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 55% at 50% 92%, rgba(226, 238, 248, 0.78) 0%, transparent 65%),
+        linear-gradient(150deg, #F4F6FA 0%, #E9EEF5 52%, #F1EFF6 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 32px 18px 28px;
-      background:
-        radial-gradient(circle at 15% 15%, rgba(219, 234, 254, 0.85) 0%, transparent 50%),
-        radial-gradient(circle at 85% 20%, rgba(243, 232, 255, 0.75) 0%, transparent 50%),
-        radial-gradient(circle at 50% 90%, rgba(224, 242, 254, 0.8) 0%, transparent 55%),
-        linear-gradient(145deg, #F6F8FC 0%, #EEF2F9 52%, #F4F1FA 100%);
+      padding: 28px 16px 24px;
+      gap: 20px;
       position: relative;
     }
 
-    /* 꽃가루 캔버스 */
+    /* 첫 진입 꽃가루 전용 캔버스 */
     #confetti-canvas {
       position: fixed;
       inset: 0;
@@ -69,182 +93,294 @@
       z-index: 50;
     }
 
-    .page-wrap {
+    /* 중앙 메인 래퍼: PC에서는 실물 가로형 카드 크기, 모바일은 꽉 차게 */
+    .desk-wrapper {
       width: 100%;
-      max-width: 400px;
+      max-width: 520px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      gap: 20px;
       position: relative;
       z-index: 10;
     }
 
-    /* 3D 원근 무대 */
-    .card-scene {
+    /* =========================================================
+       3. 3D 카드 무대 · 기울기 래퍼 · 뒤집기 래퍼
+       ========================================================= */
+    .card-stage {
       width: 100%;
-      perspective: 1400px;
-      -webkit-perspective: 1400px;
+      perspective: 1500px;
+      -webkit-perspective: 1500px;
     }
 
-    /* 마우스/기울기 틸트 래퍼 */
     .card-tilt {
       width: 100%;
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
-      transition: transform var(--dur-smooth) var(--ease-smooth);
+      transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
       will-change: transform;
     }
 
-    /* 클릭 3D 뒤집기 래퍼 */
     .card-flipper {
+      position: relative;
       width: 100%;
       display: grid;
       transform-style: preserve-3d;
       -webkit-transform-style: preserve-3d;
-      transition: transform 0.45s var(--ease-smooth);
+      transition: transform 0.56s var(--ease-smooth);
       cursor: pointer;
       outline: none;
       border-radius: var(--radius-card);
       -webkit-tap-highlight-color: transparent;
     }
 
+    .card-flipper:focus-visible {
+      box-shadow: 0 0 0 3px rgba(31, 58, 95, 0.28), 0 0 0 6px rgba(255, 255, 255, 0.85);
+    }
+
     .card-flipper.is-flipped {
       transform: rotateY(180deg);
     }
 
-    .card-flipper:focus-visible .card-face {
-      box-shadow: 0 0 0 3px rgba(31, 58, 95, 0.25), var(--shadow-hover);
-    }
-
-    /* 앞면·뒷면 공통 (Grid 1/1 겹침으로 자동 높이 동기화 -> 잘림 방지) */
+    /* 앞면·뒷면 공통: 두툼한 하얀색 코튼 종이명함 질감 + 입체 종이 단면 그림자 */
     .card-face {
       grid-area: 1 / 1;
-      width: 100%;
       position: relative;
+      width: 100%;
+      min-height: 318px;
       border-radius: var(--radius-card);
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      box-shadow: var(--shadow-ambient);
+      overflow: hidden;
       backface-visibility: hidden;
       -webkit-backface-visibility: hidden;
-      overflow: hidden;
+      border: 1px solid var(--border-card);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(255, 255, 255, 0.98) 0%, transparent 55%),
+        linear-gradient(148deg, var(--paper-top) 0%, var(--paper-mid) 58%, var(--paper-bottom) 100%);
+      /* 입체적인 두꺼운 종이 단면(edge) + 책상 위 은은한 다층 그림자 */
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -2px 4px rgba(31, 58, 95, 0.045),
+        0 1px 0 #E6EAF0,
+        0 2px 0 #DCE2EB,
+        0 3px 1px rgba(31, 58, 95, 0.08),
+        0 14px 30px -10px rgba(31, 58, 95, 0.14),
+        0 30px 60px -20px rgba(31, 58, 95, 0.16);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       transition: box-shadow var(--dur-smooth) var(--ease-smooth);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
     }
 
-    .card-scene:hover .card-face {
-      box-shadow: var(--shadow-hover);
+    .card-stage:hover .card-face {
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -2px 4px rgba(31, 58, 95, 0.05),
+        0 1px 0 #E6EAF0,
+        0 2px 0 #DCE2EB,
+        0 4px 2px rgba(31, 58, 95, 0.09),
+        0 20px 40px -10px rgba(31, 58, 95, 0.18),
+        0 38px 72px -22px rgba(31, 58, 95, 0.18);
     }
 
-    /* 미세한 카드 상단 포인트 라인 */
-    .card-face::before {
-      content: "";
+    .card-face--front {
+      transform: rotateY(0deg);
+      pointer-events: auto;
+      padding: 28px 32px 24px;
+    }
+
+    .card-face--back {
+      transform: rotateY(180deg);
+      pointer-events: none;
+      padding: 24px 28px 22px;
+      background:
+        radial-gradient(circle at 88% 12%, rgba(255, 255, 255, 0.96) 0%, transparent 55%),
+        linear-gradient(148deg, #FFFFFF 0%, #FCFCFA 55%, #F5F4F0 100%);
+    }
+
+    .card-flipper.is-flipped .card-face--front {
+      pointer-events: none;
+    }
+
+    .card-flipper.is-flipped .card-face--back {
+      pointer-events: auto;
+    }
+
+    /* 실물 코튼지 미세 섬유질(Paper Grain) 레이어 */
+    .card-paper-grain {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--primary) 0%, #4A73A8 60%, #89A8D0 100%);
-      opacity: 0.9;
-      z-index: 2;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.045;
+      mix-blend-mode: multiply;
     }
 
-    /* 빛 반사(Glare) 레이어 */
+    /* 실물 종이명함 은은한 형압(Blind Deboss) 곡선 패턴 오버레이 */
+    .card-pattern {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.11;
+    }
+
+    /* 무광 고급지 빛 반사(Paper Sheen) 레이어 */
     .card-glare {
       position: absolute;
       inset: 0;
-      border-radius: inherit;
       pointer-events: none;
-      z-index: 5;
-      opacity: 0;
-      background: radial-gradient(
-        circle 260px at var(--glare-x, 50%) var(--glare-y, 50%),
-        rgba(255, 255, 255, 0.55) 0%,
-        rgba(255, 255, 255, 0.14) 42%,
-        transparent 75%
-      );
+      z-index: 10;
+      opacity: var(--glare-opacity);
       transition: opacity var(--dur-smooth) var(--ease-smooth);
-      mix-blend-mode: overlay;
+      background:
+        radial-gradient(
+          circle 260px at var(--glare-x) var(--glare-y),
+          rgba(255, 255, 255, 0.85) 0%,
+          rgba(255, 255, 255, 0.32) 34%,
+          rgba(31, 58, 95, 0.03) 62%,
+          transparent 80%
+        ),
+        linear-gradient(
+          120deg,
+          rgba(31, 58, 95, 0.03) 0%,
+          rgba(255, 255, 255, 0.45) 46%,
+          rgba(255, 255, 255, 0.12) 56%,
+          rgba(31, 58, 95, 0.04) 100%
+        );
     }
 
-    .card-tilt.is-tilting .card-glare {
-      opacity: 1;
-    }
-
-    /* ================= 앞면 ================= */
-    .card-front {
+    /* 카드 내부 콘텐츠는 패턴 위에 배치 */
+    .card-content {
+      position: relative;
+      z-index: 2;
+      flex: 1;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 56px 32px 52px;
-      transform: rotateY(0deg);
+      justify-content: space-between;
+      gap: 18px;
     }
 
-    .avatar-ring {
-      width: 132px;
-      height: 132px;
-      padding: 5px;
+    /* =========================================================
+       4. 앞면 레이아웃 (참고 이미지의 실물 카드 배치 반영)
+       ========================================================= */
+    .front-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    /* 좌측 상단 원형 아바타 엠블럼 (종이 위 음각 프레임 느낌) */
+    .avatar-emblem {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      padding: 3px;
       border-radius: 50%;
-      background: linear-gradient(145deg, rgba(31, 58, 95, 0.18), rgba(255, 255, 255, 0.95));
+      background: linear-gradient(145deg, #FFFFFF 0%, #E3E8F0 100%);
+      border: 1px solid rgba(31, 58, 95, 0.14);
       box-shadow:
-        0 10px 28px -8px rgba(31, 58, 95, 0.16),
+        0 6px 16px -4px rgba(31, 58, 95, 0.16),
         inset 0 1px 2px rgba(255, 255, 255, 0.9);
-      margin-bottom: 30px;
       flex-shrink: 0;
+    }
+
+    .avatar-inner {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      overflow: hidden;
+      background: linear-gradient(145deg, #E8EFF8 0%, #D4E1F2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .avatar-img {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
       object-fit: cover;
+      object-position: center top;
       display: block;
-      background-color: #DCE7F5;
     }
 
-    .role-badge {
+    .avatar-fallback {
+      display: none;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      color: var(--primary);
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .avatar-fallback.is-visible {
+      display: flex;
+    }
+
+    /* 우측 상단 은은한 키워드 표기 (PROFILE.strengths 기반) */
+    .front-meta {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      text-align: right;
+      padding-top: 6px;
+    }
+
+    /* 중앙 좌측 직무 · 이름 · 한 줄 소개 */
+    .front-center {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 6px 0;
+    }
+
+    .role-row {
       display: inline-flex;
       align-items: center;
-      padding: 6px 16px;
-      border-radius: 999px;
-      background: var(--primary-soft);
-      border: 1px solid var(--primary-border);
+      gap: 10px;
+    }
+
+    .role-dash {
+      width: 24px;
+      height: 2px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--accent-line) 100%);
+      flex-shrink: 0;
+    }
+
+    .role-text {
+      font-size: 0.9rem;
+      font-weight: 700;
       color: var(--primary);
-      font-size: 0.8125rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      margin-bottom: 18px;
+      letter-spacing: 0.04em;
     }
 
     .profile-name {
-      font-size: 2.125rem;
-      font-weight: 700;
+      font-size: clamp(2.1rem, 7vw, 2.85rem);
+      font-weight: 800;
       letter-spacing: -0.03em;
-      line-height: 1.2;
+      line-height: 1.12;
       color: var(--primary);
-      min-height: 2.6rem;
-      margin-bottom: 14px;
-    }
-
-    .front-divider {
-      width: 32px;
-      height: 2px;
-      border-radius: 2px;
-      background: rgba(31, 58, 95, 0.18);
-      margin: 4px auto 20px;
+      min-height: 1.16em;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
     }
 
     .profile-tagline {
-      font-size: 1.0625rem;
-      font-weight: 400;
-      line-height: 1.6;
-      letter-spacing: -0.015em;
-      color: var(--text-sub);
-      min-height: 1.75rem;
-      word-break: keep-all;
+      font-size: clamp(0.95rem, 3.4vw, 1.05rem);
+      font-weight: 500;
+      color: var(--text-soft);
+      line-height: 1.45;
+      letter-spacing: -0.01em;
+      min-height: 1.5em;
     }
 
     /* 타이핑 커서 */
@@ -252,162 +388,196 @@
       content: "";
       display: inline-block;
       width: 2px;
-      height: 0.95em;
-      background-color: var(--primary);
-      margin-left: 3px;
+      height: 0.92em;
+      margin-left: 4px;
       vertical-align: -0.1em;
-      animation: blink 0.8s step-end infinite;
+      background: var(--primary);
+      animation: cursorBlink 0.78s steps(1) infinite;
     }
 
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
+    @keyframes cursorBlink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
     }
 
-    /* ================= 뒷면 ================= */
-    .card-back {
-      transform: rotateY(180deg);
-      padding: 38px 28px 34px;
+    /* 하단 좌측 도구 목록 · 우측 뒤집기 안내 */
+    .front-bottom {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       justify-content: space-between;
-      gap: 26px;
-      text-align: left;
+      gap: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(31, 58, 95, 0.09);
     }
 
-    .back-header {
+    .front-tools {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.01em;
+      line-height: 1.4;
+    }
+
+    .card-flip-cue {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+      opacity: 0.88;
+    }
+
+    .card-flip-cue svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* =========================================================
+       5. 뒷면 레이아웃 (강점 3개 · 해 본 일 3개 · 포트폴리오 단추)
+       ========================================================= */
+    .back-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-inner);
+    }
+
+    .back-identity {
       display: flex;
       align-items: baseline;
-      justify-content: space-between;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--primary-border);
+      gap: 8px;
     }
 
     .back-name {
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.025em;
+      font-size: 1.125rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
       color: var(--primary);
     }
 
     .back-role {
-      font-size: 0.8125rem;
+      font-size: 0.78rem;
       font-weight: 600;
       color: var(--text-muted);
       letter-spacing: 0.03em;
     }
 
-    .section-group {
+    /* 강점 3개 칩 */
+    .strength-list {
       display: flex;
-      flex-direction: column;
-      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 6px;
+      list-style: none;
     }
 
-    .section-block {
+    .strength-chip {
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      color: var(--primary);
+      font-size: 0.76rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    /* 해 본 일 3개 */
+    .back-section {
       display: flex;
       flex-direction: column;
-      gap: 11px;
+      gap: 8px;
     }
 
     .section-label {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.06em;
       color: var(--text-muted);
     }
 
-    /* 강점 칩 */
-    .chip-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .chip-strength {
-      padding: 7px 14px;
-      border-radius: 10px;
-      background: var(--primary-soft);
-      color: var(--primary);
-      font-size: 0.875rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-    }
-
-    /* 쓰는 도구 칩 */
-    .chip-tool {
-      padding: 6px 12px;
-      border-radius: 9px;
-      background: #F8FAFC;
-      border: 1px solid rgba(31, 58, 95, 0.11);
-      color: var(--text-sub);
-      font-size: 0.8125rem;
-      font-weight: 500;
-      letter-spacing: -0.005em;
-    }
-
-    /* 해 본 일 리스트 */
     .exp-list {
       list-style: none;
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 7px;
     }
 
     .exp-item {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-      padding-left: 13px;
-      border-left: 2px solid rgba(31, 58, 95, 0.16);
-    }
-
-    .exp-top {
-      display: flex;
       align-items: baseline;
       justify-content: space-between;
       gap: 10px;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: rgba(31, 58, 95, 0.03);
+      border: 1px solid rgba(31, 58, 95, 0.075);
+    }
+
+    .exp-main {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 4px 8px;
+      min-width: 0;
     }
 
     .exp-title {
-      font-size: 0.9375rem;
+      font-size: 0.875rem;
       font-weight: 700;
-      color: var(--text-main);
-      letter-spacing: -0.02em;
+      color: var(--text-ink);
+      letter-spacing: -0.015em;
+      white-space: nowrap;
+    }
+
+    .exp-desc {
+      font-size: 0.8rem;
+      font-weight: 400;
+      color: var(--text-soft);
+      line-height: 1.35;
     }
 
     .exp-year {
-      font-size: 0.75rem;
-      font-weight: 600;
+      font-size: 0.74rem;
+      font-weight: 700;
       color: var(--primary);
-      opacity: 0.78;
+      opacity: 0.8;
       white-space: nowrap;
       flex-shrink: 0;
     }
 
-    .exp-desc {
-      font-size: 0.84375rem;
-      line-height: 1.45;
-      color: var(--text-sub);
-      letter-spacing: -0.01em;
-      word-break: keep-all;
+    /* 뒷면 하단: 포트폴리오 보기 단추 */
+    .back-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-top: 2px;
     }
 
-    /* 포트폴리오 단추 */
     .portfolio-btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 7px;
       width: 100%;
-      padding: 15px 20px;
-      border-radius: 14px;
+      padding: 12px 18px;
+      border-radius: 12px;
       background: var(--primary);
+      border: 1px solid rgba(31, 58, 95, 0.9);
       color: #FFFFFF;
       text-decoration: none;
-      font-size: 0.9375rem;
-      font-weight: 600;
+      font-size: 0.9rem;
+      font-weight: 700;
       letter-spacing: -0.01em;
-      box-shadow: 0 8px 20px -8px rgba(31, 58, 95, 0.45);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 8px 18px -6px rgba(31, 58, 95, 0.38);
       transition:
         background-color var(--dur-smooth) var(--ease-smooth),
         transform var(--dur-smooth) var(--ease-smooth),
@@ -415,110 +585,238 @@
     }
 
     .portfolio-btn:hover {
-      background: var(--primary-light);
+      background: var(--primary-bright);
       transform: translateY(-2px);
-      box-shadow: 0 12px 24px -8px rgba(31, 58, 95, 0.5);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.22),
+        0 12px 24px -6px rgba(31, 58, 95, 0.45);
     }
 
     .portfolio-btn:active {
       transform: translateY(0);
     }
 
-    .portfolio-btn svg {
-      width: 16px;
-      height: 16px;
+    .portfolio-btn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .portfolio-arrow {
+      width: 15px;
+      height: 15px;
       transition: transform var(--dur-smooth) var(--ease-smooth);
     }
 
-    .portfolio-btn:hover svg {
+    .portfolio-btn:hover .portfolio-arrow {
       transform: translate(2px, -2px);
     }
 
-    /* 카드 아래 안내 버튼 */
-    .flip-hint {
-      margin-top: 22px;
+    /* =========================================================
+       6. 카드 아래 「눌러서 뒤집기」 안내 단추 & 푸터
+       ========================================================= */
+    .flip-hint-btn {
       display: inline-flex;
       align-items: center;
+      justify-content: center;
       gap: 7px;
-      padding: 9px 18px;
-      border-radius: 999px;
-      border: 1px solid rgba(31, 58, 95, 0.1);
-      background: rgba(255, 255, 255, 0.62);
+      padding: 10px 20px;
+      min-height: 42px;
+      background: rgba(255, 255, 255, 0.78);
       color: var(--primary);
-      font-size: 0.84375rem;
-      font-weight: 500;
+      border: 1px solid rgba(31, 58, 95, 0.12);
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 0.84rem;
+      font-weight: 600;
       letter-spacing: -0.01em;
       cursor: pointer;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 4px 12px -4px rgba(31, 58, 95, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       transition:
         background-color var(--dur-smooth) var(--ease-smooth),
+        border-color var(--dur-smooth) var(--ease-smooth),
         transform var(--dur-smooth) var(--ease-smooth),
         box-shadow var(--dur-smooth) var(--ease-smooth);
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .flip-hint:hover {
-      background: rgba(255, 255, 255, 0.92);
+    .flip-hint-btn:hover {
+      background: #FFFFFF;
+      border-color: rgba(31, 58, 95, 0.24);
       transform: translateY(-1px);
-      box-shadow: 0 6px 16px -6px rgba(31, 58, 95, 0.14);
+      box-shadow: 0 8px 18px -6px rgba(31, 58, 95, 0.16);
     }
 
-    .flip-hint svg {
+    .flip-hint-btn:active {
+      transform: translateY(0);
+    }
+
+    .flip-hint-btn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .flip-icon {
       width: 15px;
       height: 15px;
-      opacity: 0.8;
+      transition: transform 0.45s var(--ease-smooth);
     }
 
-    /* 맨 아래 크레딧 */
-    .page-footer {
-      margin-top: 28px;
+    .flip-hint-btn[aria-pressed="true"] .flip-icon {
+      transform: rotate(180deg);
+    }
+
+    .site-footer {
+      width: 100%;
+      max-width: 520px;
       text-align: center;
-      font-size: 0.75rem;
+      font-size: 0.74rem;
+      font-weight: 400;
       color: var(--text-muted);
-      letter-spacing: -0.01em;
       line-height: 1.5;
-      word-break: keep-all;
+      padding: 2px 8px 0;
     }
 
-    /* PC 화면 여유 여백 보정 */
-    @media (min-width: 480px) {
-      .page-wrap {
-        max-width: 420px;
+    /* =========================================================
+       7. 모바일(390px 이하) 가로 밀림 방지 및 여백 최적화
+       ========================================================= */
+    @media (max-width: 440px) {
+      body {
+        padding: 20px 14px 18px;
+        gap: 16px;
       }
 
-      .card-front {
-        padding: 64px 40px 60px;
+      .card-face {
+        min-height: 292px;
+        border-radius: 18px;
       }
 
-      .card-back {
-        padding: 42px 36px 38px;
+      .card-face--front {
+        padding: 22px 20px 18px;
+      }
+
+      .card-face--back {
+        padding: 18px 18px 18px;
+      }
+
+      .avatar-emblem {
+        width: 56px;
+        height: 56px;
+      }
+
+      .front-meta {
+        font-size: 0.72rem;
+      }
+
+      .front-tools {
+        font-size: 0.72rem;
+      }
+
+      .card-flip-cue {
+        font-size: 0.74rem;
+      }
+
+      .back-top {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding-bottom: 10px;
+      }
+
+      .strength-list {
+        justify-content: flex-start;
+      }
+
+      .exp-item {
+        padding: 7px 10px;
+        gap: 8px;
+      }
+
+      .exp-title {
+        font-size: 0.84rem;
+      }
+
+      .exp-desc {
+        font-size: 0.76rem;
+      }
+
+      .exp-year {
+        font-size: 0.7rem;
       }
     }
 
-    /* 움직임 줄이기 설정 대응 */
+    /* =========================================================
+       8. 접근성: 움직임 줄이기 설정(prefers-reduced-motion)
+       ========================================================= */
     @media (prefers-reduced-motion: reduce) {
-      .card-tilt,
-      .card-flipper,
-      .card-face,
-      .card-glare,
-      .portfolio-btn,
-      .portfolio-btn svg,
-      .flip-hint {
-        transition: none !important;
-        animation: none !important;
+      .card-tilt {
+        transform: none !important;
+      }
+
+      .card-glare {
+        display: none !important;
+      }
+
+      .card-flipper {
+        transition: none;
+        transform: none !important;
+      }
+
+      .card-face {
+        transition: opacity 0.2s ease;
+      }
+
+      .card-face--front {
+        transform: none;
+        opacity: 1;
+        z-index: 2;
+      }
+
+      .card-face--back {
+        transform: none;
+        opacity: 0;
+        z-index: 1;
+      }
+
+      .card-flipper.is-flipped .card-face--front {
+        opacity: 0;
+        z-index: 1;
+      }
+
+      .card-flipper.is-flipped .card-face--back {
+        opacity: 1;
+        z-index: 2;
       }
 
       .typing-cursor::after {
         display: none;
       }
+
+      .flip-icon,
+      .portfolio-btn,
+      .portfolio-arrow,
+      .flip-hint-btn {
+        transition: none;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- 첫 진입 시 한 번만 터지는 꽃가루 캔버스 -->
   <canvas id="confetti-canvas" aria-hidden="true"></canvas>
 
-  <main class="page-wrap">
-    <div class="card-scene" id="card-scene">
+  <!-- 코튼 종이 미세 질감용 SVG 필터 (외부 파일 없이 순수 인라인) -->
+  <svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+    <defs>
+      <filter id="paper-grain-filter" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="3" stitchTiles="stitch" result="noise" />
+        <feColorMatrix type="saturate" values="0" in="noise" />
+      </filter>
+    </defs>
+  </svg>
+
+  <main class="desk-wrapper">
+    <div class="card-stage">
       <div class="card-tilt" id="card-tilt">
         <div
           class="card-flipper"
@@ -528,196 +826,298 @@
           aria-pressed="false"
           aria-label="명함 뒤집기"
         >
-          <!-- 앞면 -->
-          <section class="card-face card-front" aria-label="명함 앞면">
+          <!-- ================= 카드 앞면 ================= -->
+          <section class="card-face card-face--front" aria-label="명함 앞면">
+            <!-- 코튼 종이 미세 섬유질 질감 -->
+            <svg class="card-paper-grain" aria-hidden="true">
+              <rect width="100%" height="100%" filter="url(#paper-grain-filter)" />
+            </svg>
+            <!-- 실물 종이명함 은은한 형압 곡선 패턴 -->
+            <svg class="card-pattern" viewBox="0 0 520 328" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="lineGradFront" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#1F3A5F" stop-opacity="0.5" />
+                  <stop offset="50%" stop-color="#64748B" stop-opacity="0.3" />
+                  <stop offset="100%" stop-color="#1F3A5F" stop-opacity="0.45" />
+                </linearGradient>
+              </defs>
+              <g id="pattern-lines-front" fill="none" stroke="url(#lineGradFront)" stroke-width="0.75"></g>
+            </svg>
             <div class="card-glare" aria-hidden="true"></div>
-            <div class="avatar-ring">
-              <img id="avatar-img" class="avatar-img" src="" alt="" />
+
+            <div class="card-content">
+              <div class="front-top">
+                <div class="avatar-emblem">
+                  <div class="avatar-inner">
+                    <img class="avatar-img" id="avatar-img" alt="" />
+                    <div class="avatar-fallback" id="avatar-fallback" aria-hidden="true">
+                      <span id="avatar-fallback-initial"></span>
+                    </div>
+                  </div>
+                </div>
+                <span class="front-meta" id="front-strengths-inline"></span>
+              </div>
+
+              <div class="front-center">
+                <div class="role-row">
+                  <span class="role-dash" aria-hidden="true"></span>
+                  <span class="role-text" id="front-role"></span>
+                </div>
+                <h1 class="profile-name" id="front-name"></h1>
+                <p class="profile-tagline" id="front-tagline"></p>
+              </div>
+
+              <div class="front-bottom">
+                <span class="front-tools" id="front-tools"></span>
+                <span class="card-flip-cue" aria-hidden="true">
+                  <span id="front-flip-cue"></span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <path d="M21 3v6h-6" />
+                  </svg>
+                </span>
+              </div>
             </div>
-            <span id="front-role" class="role-badge"></span>
-            <h1 id="front-name" class="profile-name"></h1>
-            <div class="front-divider" aria-hidden="true"></div>
-            <p id="front-tagline" class="profile-tagline"></p>
           </section>
 
-          <!-- 뒷면 -->
-          <section class="card-face card-back" aria-label="명함 뒷면">
+          <!-- ================= 카드 뒷면 ================= -->
+          <section class="card-face card-face--back" aria-label="명함 뒷면">
+            <!-- 코튼 종이 미세 섬유질 질감 -->
+            <svg class="card-paper-grain" aria-hidden="true">
+              <rect width="100%" height="100%" filter="url(#paper-grain-filter)" />
+            </svg>
+            <!-- 실물 종이명함 은은한 형압 곡선 패턴 -->
+            <svg class="card-pattern" viewBox="0 0 520 328" preserveAspectRatio="none" aria-hidden="true">
+              <defs>
+                <linearGradient id="lineGradBack" x1="100%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#1F3A5F" stop-opacity="0.45" />
+                  <stop offset="55%" stop-color="#64748B" stop-opacity="0.28" />
+                  <stop offset="100%" stop-color="#1F3A5F" stop-opacity="0.4" />
+                </linearGradient>
+              </defs>
+              <g id="pattern-lines-back" fill="none" stroke="url(#lineGradBack)" stroke-width="0.75"></g>
+            </svg>
             <div class="card-glare" aria-hidden="true"></div>
 
-            <header class="back-header">
-              <h2 id="back-name" class="back-name"></h2>
-              <span id="back-role" class="back-role"></span>
-            </header>
+            <div class="card-content">
+              <header class="back-top">
+                <div class="back-identity">
+                  <span class="back-name" id="back-name"></span>
+                  <span class="back-role" id="back-role"></span>
+                </div>
+                <ul class="strength-list" id="back-strengths" aria-label="강점"></ul>
+              </header>
 
-            <div class="section-group">
-              <div class="section-block">
-                <h3 class="section-label">강점</h3>
-                <div id="strengths-list" class="chip-list"></div>
+              <div class="back-section">
+                <h2 class="section-label">해 본 일</h2>
+                <ul class="exp-list" id="back-experiences"></ul>
               </div>
 
-              <div class="section-block">
-                <h3 class="section-label">쓰는 도구</h3>
-                <div id="tools-list" class="chip-list"></div>
-              </div>
-
-              <div class="section-block">
-                <h3 class="section-label">해 본 일</h3>
-                <ul id="experiences-list" class="exp-list"></ul>
+              <div class="back-footer">
+                <a
+                  class="portfolio-btn"
+                  id="portfolio-link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span id="portfolio-label"></span>
+                  <svg class="portfolio-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 17L17 7" />
+                    <path d="M7 7h10v10" />
+                  </svg>
+                </a>
               </div>
             </div>
-
-            <a
-              id="portfolio-link"
-              class="portfolio-btn"
-              href="#"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <span>포트폴리오 보기</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M7 17L17 7" />
-                <path d="M7 7h10v10" />
-              </svg>
-            </a>
           </section>
         </div>
       </div>
     </div>
 
-    <button type="button" id="flip-hint" class="flip-hint" aria-label="명함 눌러서 뒤집기">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+    <!-- 카드 아래 「눌러서 뒤집기」 안내 겸 단추 -->
+    <button
+      type="button"
+      class="flip-hint-btn"
+      id="flip-hint-btn"
+      aria-pressed="false"
+    >
+      <svg class="flip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8" />
         <path d="M21 3v5h-5" />
-        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
-        <path d="M8 16H3v5" />
+        <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16" />
+        <path d="M3 21v-5h5" />
       </svg>
-      <span>눌러서 뒤집기</span>
+      <span id="flip-hint-text"></span>
     </button>
-
-    <footer class="page-footer">
-      이 페이지의 그림과 코드는 AI의 도움을 받아 만들었습니다
-    </footer>
   </main>
 
+  <footer class="site-footer" id="footer-note"></footer>
+
   <script>
+    /* =========================================================
+       [내 정보] 여기 PROFILE 객체만 수정하면 화면 전체가 바뀝니다.
+       ========================================================= */
     const PROFILE = {
+      avatar: "avatar.png",
       name: "손동욱",
       role: "기획",
       tagline: "매 순간 배우는 중",
-      avatar: "avatar.png",
       strengths: ["도전", "인내", "생각"],
       tools: ["GPT", "Claude", "Gemini", "Adobe PPr"],
       experiences: [
-        {
-          title: "찬이왔다",
-          description: "배달전문 밀키트 사업",
-          year: "2024"
-        },
-        {
-          title: "영상 독학",
-          description: "소규모 유튜브 편집 외주",
-          year: "2019~현재"
-        },
-        {
-          title: "AI 부트캠프",
-          description: "경남대학교에서 교육 받음",
-          year: "2026"
-        }
+        { title: "찬이왔다", description: "배달전문 밀키트 사업", year: "2024" },
+        { title: "영상 독학", description: "소규모 유튜브 편집 외주", year: "2019~현재" },
+        { title: "AI 부트캠프", description: "경남대학교에서 교육 받음", year: "2026" }
       ],
-      portfolioUrl: "https://sites.google.com/view/gonggonggogo/%ED%99%88"
+      portfolioUrl: "https://sites.google.com/view/gonggonggogo/%ED%99%88",
+      portfolioLabel: "포트폴리오 보기",
+      flipHint: "눌러서 뒤집기",
+      footerNote: "이 페이지의 그림과 코드는 AI의 도움을 받아 만들었습니다"
     };
 
-    (function initCard() {
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    (function initBusinessCard() {
+      const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      let prefersReducedMotion = reducedMotionQuery.matches;
 
-      const cardScene = document.getElementById("card-scene");
+      if (typeof reducedMotionQuery.addEventListener === "function") {
+        reducedMotionQuery.addEventListener("change", (event) => {
+          prefersReducedMotion = event.matches;
+          if (prefersReducedMotion) {
+            resetTiltImmediate();
+          }
+        });
+      }
+
+      // DOM 참조
       const cardTilt = document.getElementById("card-tilt");
       const cardFlipper = document.getElementById("card-flipper");
-      const flipHint = document.getElementById("flip-hint");
-      const portfolioLink = document.getElementById("portfolio-link");
+      const flipHintBtn = document.getElementById("flip-hint-btn");
+      const flipHintText = document.getElementById("flip-hint-text");
+      const footerNoteEl = document.getElementById("footer-note");
 
       const avatarImg = document.getElementById("avatar-img");
+      const avatarFallback = document.getElementById("avatar-fallback");
+      const avatarFallbackInitial = document.getElementById("avatar-fallback-initial");
+
+      const frontStrengthsInline = document.getElementById("front-strengths-inline");
       const frontRole = document.getElementById("front-role");
       const frontName = document.getElementById("front-name");
       const frontTagline = document.getElementById("front-tagline");
+      const frontTools = document.getElementById("front-tools");
+      const frontFlipCue = document.getElementById("front-flip-cue");
+
       const backName = document.getElementById("back-name");
       const backRole = document.getElementById("back-role");
-      const strengthsList = document.getElementById("strengths-list");
-      const toolsList = document.getElementById("tools-list");
-      const experiencesList = document.getElementById("experiences-list");
-      const glares = document.querySelectorAll(".card-glare");
+      const backStrengths = document.getElementById("back-strengths");
+      const backExperiences = document.getElementById("back-experiences");
+      const portfolioLink = document.getElementById("portfolio-link");
+      const portfolioLabel = document.getElementById("portfolio-label");
 
-      /* 1. PROFILE 데이터로 화면 렌더링 */
+      /* -------------------------------------------------------
+         1. 실물 카드 미세 곡선(기요셰) 패턴 생성
+         ------------------------------------------------------- */
+      function buildGuillochePattern(groupId, mirror) {
+        const group = document.getElementById(groupId);
+        if (!group) return;
+        const svgNS = "http://www.w3.org/2000/svg";
+        const count = 44;
+
+        for (let i = 0; i < count; i += 1) {
+          const offset = i * 16 - 140;
+          const path = document.createElementNS(svgNS, "path");
+          const d = mirror
+            ? `M ${520 - offset} -30 Q ${340 - offset * 0.65} 150 ${160 - offset} 360`
+            : `M ${offset} -30 Q ${offset + 180} 150 ${offset + 340} 360`;
+          path.setAttribute("d", d);
+          group.appendChild(path);
+        }
+      }
+
+      /* -------------------------------------------------------
+         2. PROFILE 데이터로 화면 전체 렌더링
+         ------------------------------------------------------- */
       function renderProfile() {
-        document.title = `${PROFILE.name} — ${PROFILE.role}`;
+        document.title = `${PROFILE.name} · ${PROFILE.role}`;
 
+        // 앞면
         avatarImg.src = PROFILE.avatar;
-        avatarImg.alt = `${PROFILE.name} 아바타`;
+        avatarImg.alt = PROFILE.name;
+        avatarFallbackInitial.textContent = PROFILE.name.slice(0, 2);
 
+        avatarImg.addEventListener("error", () => {
+          avatarImg.style.display = "none";
+          avatarFallback.classList.add("is-visible");
+        });
+
+        frontStrengthsInline.textContent = PROFILE.strengths.join(" · ");
         frontRole.textContent = PROFILE.role;
+        frontTools.textContent = PROFILE.tools.join(" · ");
+        frontFlipCue.textContent = PROFILE.flipHint;
+
+        // 뒷면
         backName.textContent = PROFILE.name;
         backRole.textContent = PROFILE.role;
-        portfolioLink.href = PROFILE.portfolioUrl;
 
-        strengthsList.innerHTML = "";
+        backStrengths.innerHTML = "";
         PROFILE.strengths.forEach((item) => {
-          const span = document.createElement("span");
-          span.className = "chip-strength";
-          span.textContent = item;
-          strengthsList.appendChild(span);
+          const li = document.createElement("li");
+          li.className = "strength-chip";
+          li.textContent = item;
+          backStrengths.appendChild(li);
         });
 
-        toolsList.innerHTML = "";
-        PROFILE.tools.forEach((tool) => {
-          const span = document.createElement("span");
-          span.className = "chip-tool";
-          span.textContent = tool;
-          toolsList.appendChild(span);
-        });
-
-        experiencesList.innerHTML = "";
+        backExperiences.innerHTML = "";
         PROFILE.experiences.forEach((exp) => {
           const li = document.createElement("li");
           li.className = "exp-item";
 
-          const top = document.createElement("div");
-          top.className = "exp-top";
+          const main = document.createElement("div");
+          main.className = "exp-main";
 
-          const title = document.createElement("span");
+          const title = document.createElement("strong");
           title.className = "exp-title";
           title.textContent = exp.title;
+
+          const desc = document.createElement("span");
+          desc.className = "exp-desc";
+          desc.textContent = exp.description;
 
           const year = document.createElement("span");
           year.className = "exp-year";
           year.textContent = exp.year;
 
-          const desc = document.createElement("p");
-          desc.className = "exp-desc";
-          desc.textContent = exp.description;
-
-          top.appendChild(title);
-          top.appendChild(year);
-          li.appendChild(top);
-          li.appendChild(desc);
-          experiencesList.appendChild(li);
+          main.appendChild(title);
+          main.appendChild(desc);
+          li.appendChild(main);
+          li.appendChild(year);
+          backExperiences.appendChild(li);
         });
+
+        // 포트폴리오 단추 (새 탭)
+        portfolioLink.href = PROFILE.portfolioUrl;
+        portfolioLabel.textContent = PROFILE.portfolioLabel;
+
+        // 하단 안내 및 푸터
+        flipHintText.textContent = PROFILE.flipHint;
+        footerNoteEl.textContent = PROFILE.footerNote;
       }
 
-      /* 2. 이름 및 한 줄 소개 타이핑 효과 */
-      function typeText(el, text, speed) {
+      /* -------------------------------------------------------
+         3. 이름 & 한 줄 소개 타이핑 효과
+         ------------------------------------------------------- */
+      function typeText(element, text, speedMs) {
         return new Promise((resolve) => {
-          el.textContent = "";
-          el.classList.add("typing-cursor");
           const chars = Array.from(text);
-          let idx = 0;
+          let index = 0;
+          element.textContent = "";
+          element.classList.add("typing-cursor");
 
           function step() {
-            if (idx < chars.length) {
-              el.textContent += chars[idx];
-              idx += 1;
-              setTimeout(step, speed);
+            if (index < chars.length) {
+              element.textContent += chars[index];
+              index += 1;
+              window.setTimeout(step, speedMs);
             } else {
-              el.classList.remove("typing-cursor");
+              element.classList.remove("typing-cursor");
               resolve();
             }
           }
@@ -725,184 +1125,306 @@
         });
       }
 
-      async function runTypingEffect() {
-        if (reducedMotion) {
+      async function runIntroTyping() {
+        if (prefersReducedMotion) {
           frontName.textContent = PROFILE.name;
           frontTagline.textContent = PROFILE.tagline;
           return;
         }
-        await typeText(frontName, PROFILE.name, 110);
-        await new Promise((r) => setTimeout(r, 160));
-        await typeText(frontTagline, PROFILE.tagline, 65);
+        await typeText(frontName, PROFILE.name, 105);
+        await new Promise((r) => window.setTimeout(r, 150));
+        await typeText(frontTagline, PROFILE.tagline, 60);
       }
 
-      /* 3. 카드 뒤집기 인터랙션 */
+      /* -------------------------------------------------------
+         4. 3D 카드 뒤집기 인터랙션
+         ------------------------------------------------------- */
       let isFlipped = false;
 
       function toggleFlip() {
         isFlipped = !isFlipped;
         cardFlipper.classList.toggle("is-flipped", isFlipped);
         cardFlipper.setAttribute("aria-pressed", String(isFlipped));
+        flipHintBtn.setAttribute("aria-pressed", String(isFlipped));
       }
 
       cardFlipper.addEventListener("click", toggleFlip);
-      cardFlipper.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
+
+      cardFlipper.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
           toggleFlip();
         }
       });
 
-      flipHint.addEventListener("click", toggleFlip);
+      flipHintBtn.addEventListener("click", toggleFlip);
 
-      /* 포트폴리오 단추 클릭 시 카드 뒤집힘 방지 */
-      portfolioLink.addEventListener("click", (e) => {
-        e.stopPropagation();
+      // 포트폴리오 단추 클릭 시 카드 뒤집힘 방지
+      portfolioLink.addEventListener("click", (event) => {
+        event.stopPropagation();
       });
 
-      /* 4. 마우스 & 모바일 기울기 3D 틸트 + 빛 반사 */
-      function applyTilt(rotateX, rotateY, glareX, glareY) {
-        cardTilt.classList.add("is-tilting");
-        cardTilt.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
-        glares.forEach((glare) => {
-          glare.style.setProperty("--glare-x", `${glareX.toFixed(1)}%`);
-          glare.style.setProperty("--glare-y", `${glareY.toFixed(1)}%`);
-        });
+      portfolioLink.addEventListener("keydown", (event) => {
+        event.stopPropagation();
+      });
+
+      /* -------------------------------------------------------
+         5. 마우스(PC) 및 기울기 센서(모바일) 3D 틸트 + 빛 반사
+         ------------------------------------------------------- */
+      const MAX_TILT = 11;
+      let targetTiltX = 0;
+      let targetTiltY = 0;
+      let currentTiltX = 0;
+      let currentTiltY = 0;
+      let targetGlareX = 50;
+      let targetGlareY = 50;
+      let targetGlareOpacity = 0;
+      let tiltRafId = null;
+
+      function applyTiltVars(tx, ty, gx, gy, op) {
+        const rootStyle = cardTilt.style;
+        rootStyle.setProperty("--tilt-x", `${tx.toFixed(2)}deg`);
+        rootStyle.setProperty("--tilt-y", `${ty.toFixed(2)}deg`);
+        rootStyle.setProperty("--glare-x", `${gx.toFixed(1)}%`);
+        rootStyle.setProperty("--glare-y", `${gy.toFixed(1)}%`);
+        rootStyle.setProperty("--glare-opacity", op.toFixed(2));
       }
 
-      function resetTilt() {
-        cardTilt.classList.remove("is-tilting");
-        cardTilt.style.transform = "rotateX(0deg) rotateY(0deg)";
+      function resetTiltImmediate() {
+        targetTiltX = 0;
+        targetTiltY = 0;
+        currentTiltX = 0;
+        currentTiltY = 0;
+        targetGlareOpacity = 0;
+        applyTiltVars(0, 0, 50, 50, 0);
       }
 
-      if (!reducedMotion) {
-        /* 데스크톱 마우스 */
-        cardScene.addEventListener("pointermove", (e) => {
-          if (e.pointerType !== "mouse") return;
-          const rect = cardScene.getBoundingClientRect();
-          const px = (e.clientX - rect.left) / rect.width;
-          const py = (e.clientY - rect.top) / rect.height;
+      function animateTilt() {
+        if (prefersReducedMotion) {
+          tiltRafId = null;
+          return;
+        }
 
-          const maxTilt = 7.5;
-          const rotateY = (px - 0.5) * (maxTilt * 2);
-          const rotateX = (0.5 - py) * (maxTilt * 2);
+        const ease = 0.13;
+        currentTiltX += (targetTiltX - currentTiltX) * ease;
+        currentTiltY += (targetTiltY - currentTiltY) * ease;
 
-          applyTilt(rotateX, rotateY, px * 100, py * 100);
-        });
+        applyTiltVars(
+          currentTiltX,
+          currentTiltY,
+          targetGlareX,
+          targetGlareY,
+          targetGlareOpacity
+        );
 
-        cardScene.addEventListener("pointerleave", resetTilt);
+        const settled =
+          Math.abs(targetTiltX - currentTiltX) < 0.02 &&
+          Math.abs(targetTiltY - currentTiltY) < 0.02 &&
+          targetGlareOpacity === 0;
 
-        /* 모바일 기기 기울기 (DeviceOrientation) */
-        const handleOrientation = (e) => {
-          if (e.beta === null || e.gamma === null) return;
-          const gamma = Math.max(-25, Math.min(25, e.gamma));
-          const beta = Math.max(-25, Math.min(25, e.beta - 45));
-
-          const rotateY = (gamma / 25) * 6.5;
-          const rotateX = -(beta / 25) * 6.5;
-          const glareX = 50 + (gamma / 25) * 35;
-          const glareY = 50 + (beta / 25) * 35;
-
-          applyTilt(rotateX, rotateY, glareX, glareY);
-        };
-
-        if (window.DeviceOrientationEvent) {
-          if (typeof DeviceOrientationEvent.requestPermission === "function") {
-            const requestOnce = () => {
-              DeviceOrientationEvent.requestPermission()
-                .then((state) => {
-                  if (state === "granted") {
-                    window.addEventListener("deviceorientation", handleOrientation, { passive: true });
-                  }
-                })
-                .catch(() => {});
-              window.removeEventListener("touchstart", requestOnce);
-            };
-            window.addEventListener("touchstart", requestOnce, { once: true, passive: true });
-          } else {
-            window.addEventListener("deviceorientation", handleOrientation, { passive: true });
-          }
+        if (!settled) {
+          tiltRafId = window.requestAnimationFrame(animateTilt);
+        } else {
+          currentTiltX = 0;
+          currentTiltY = 0;
+          applyTiltVars(0, 0, 50, 50, 0);
+          tiltRafId = null;
         }
       }
 
-      /* 5. 첫 방문 시 한 번만 은은하게 터지는 꽃가루 */
+      function startTiltLoop() {
+        if (!tiltRafId && !prefersReducedMotion) {
+          tiltRafId = window.requestAnimationFrame(animateTilt);
+        }
+      }
+
+      cardFlipper.addEventListener("pointermove", (event) => {
+        if (prefersReducedMotion || event.pointerType !== "mouse") return;
+
+        const rect = cardFlipper.getBoundingClientRect();
+        const relX = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        const relY = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+
+        targetTiltY = (relX - 0.5) * 2 * MAX_TILT;
+        targetTiltX = (0.5 - relY) * 2 * MAX_TILT;
+
+        targetGlareX = (isFlipped ? 1 - relX : relX) * 100;
+        targetGlareY = relY * 100;
+        targetGlareOpacity = 0.95;
+
+        startTiltLoop();
+      });
+
+      cardFlipper.addEventListener("pointerleave", (event) => {
+        if (event.pointerType !== "mouse") return;
+        targetTiltX = 0;
+        targetTiltY = 0;
+        targetGlareOpacity = 0;
+        startTiltLoop();
+      });
+
+      // 모바일 기울기 센서
+      let baseBeta = null;
+      let baseGamma = null;
+
+      function handleOrientation(event) {
+        if (prefersReducedMotion) return;
+        if (typeof event.beta !== "number" || typeof event.gamma !== "number") return;
+
+        if (baseBeta === null || baseGamma === null) {
+          baseBeta = event.beta;
+          baseGamma = event.gamma;
+        }
+
+        const deltaBeta = Math.max(-25, Math.min(25, event.beta - baseBeta));
+        const deltaGamma = Math.max(-25, Math.min(25, event.gamma - baseGamma));
+
+        const normX = deltaGamma / 25;
+        const normY = deltaBeta / 25;
+
+        targetTiltY = normX * MAX_TILT;
+        targetTiltX = -normY * MAX_TILT;
+
+        const glareNormX = (normX + 1) / 2;
+        const glareNormY = (normY + 1) / 2;
+
+        targetGlareX = (isFlipped ? 1 - glareNormX : glareNormX) * 100;
+        targetGlareY = glareNormY * 100;
+        targetGlareOpacity = Math.min(0.9, Math.hypot(normX, normY) * 0.95);
+
+        startTiltLoop();
+      }
+
+      if (typeof window.DeviceOrientationEvent !== "undefined") {
+        if (typeof DeviceOrientationEvent.requestPermission === "function") {
+          const enableOrientationOnce = () => {
+            DeviceOrientationEvent.requestPermission()
+              .then((state) => {
+                if (state === "granted") {
+                  window.addEventListener("deviceorientation", handleOrientation, { passive: true });
+                }
+              })
+              .catch(() => {});
+          };
+          window.addEventListener("touchstart", enableOrientationOnce, { once: true, passive: true });
+        } else {
+          window.addEventListener("deviceorientation", handleOrientation, { passive: true });
+        }
+      }
+
+      /* -------------------------------------------------------
+         6. 첫 진입 1회 꽃가루(Confetti) 효과
+         ------------------------------------------------------- */
       function launchConfettiOnce() {
-        if (reducedMotion) return;
-
         const canvas = document.getElementById("confetti-canvas");
-        const ctx = canvas.getContext("2d");
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        if (!canvas) return;
 
-        function resize() {
-          canvas.width = window.innerWidth * dpr;
-          canvas.height = window.innerHeight * dpr;
+        if (prefersReducedMotion) {
+          canvas.remove();
+          return;
+        }
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          canvas.remove();
+          return;
+        }
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+
+        function resizeCanvas() {
+          width = window.innerWidth;
+          height = window.innerHeight;
+          canvas.width = Math.floor(width * dpr);
+          canvas.height = Math.floor(height * dpr);
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
-        resize();
-        window.addEventListener("resize", resize);
 
-        const colors = ["#1F3A5F", "#4A73A8", "#93B5E1", "#C4B5FD", "#F9A8D4", "#99D5C9"];
-        const originX = window.innerWidth / 2;
-        const originY = window.innerHeight * 0.42;
-        const particles = Array.from({ length: 42 }, () => {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 3 + Math.random() * 5.5;
+        resizeCanvas();
+        window.addEventListener("resize", resizeCanvas);
+
+        const colors = ["#1F3A5F", "#4A73A8", "#7DD3FC", "#C084FC", "#F472B6"];
+        const particleCount = width < 480 ? 44 : 62;
+        const originX = width * 0.5;
+        const originY = height * 0.42;
+
+        const particles = Array.from({ length: particleCount }, () => {
+          const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.1;
+          const speed = 4 + Math.random() * 6.5;
           return {
-            x: originX,
-            y: originY,
+            x: originX + (Math.random() - 0.5) * 36,
+            y: originY + (Math.random() - 0.5) * 18,
             vx: Math.cos(angle) * speed,
-            vy: Math.sin(angle) * speed - 3.2,
-            size: 4 + Math.random() * 4.5,
+            vy: Math.sin(angle) * speed - 1.5,
+            size: 5 + Math.random() * 5.5,
+            aspect: 0.45 + Math.random() * 0.5,
             color: colors[Math.floor(Math.random() * colors.length)],
-            rotation: Math.random() * 360,
-            vRot: (Math.random() - 0.5) * 10,
-            alpha: 1,
-            gravity: 0.14 + Math.random() * 0.05,
-            drag: 0.985
+            rotation: Math.random() * Math.PI * 2,
+            vr: (Math.random() - 0.5) * 0.2,
+            alpha: 1
           };
         });
 
-        let frameId;
-        function animate() {
-          ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-          let alive = 0;
+        const startTime = performance.now();
+        const durationMs = 2200;
 
-          particles.forEach((p) => {
-            p.vx *= p.drag;
-            p.vy = p.vy * p.drag + p.gravity;
+        function drawFrame(now) {
+          const elapsed = now - startTime;
+          const progress = elapsed / durationMs;
+
+          ctx.clearRect(0, 0, width, height);
+
+          let aliveCount = 0;
+          for (let i = 0; i < particles.length; i += 1) {
+            const p = particles[i];
+            p.vx *= 0.985;
+            p.vy = p.vy * 0.985 + 0.19;
             p.x += p.vx;
             p.y += p.vy;
-            p.rotation += p.vRot;
-            p.alpha -= 0.014;
+            p.rotation += p.vr;
 
-            if (p.alpha > 0) {
-              alive += 1;
+            if (progress > 0.62) {
+              p.alpha = Math.max(0, 1 - (progress - 0.62) / 0.38);
+            }
+
+            if (p.alpha > 0.01 && p.y < height + 30) {
+              aliveCount += 1;
               ctx.save();
-              ctx.globalAlpha = Math.max(0, p.alpha);
+              ctx.globalAlpha = p.alpha;
               ctx.translate(p.x, p.y);
-              ctx.rotate((p.rotation * Math.PI) / 180);
+              ctx.rotate(p.rotation);
               ctx.fillStyle = p.color;
-              ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.65);
+              ctx.fillRect(
+                -p.size / 2,
+                -(p.size * p.aspect) / 2,
+                p.size,
+                p.size * p.aspect
+              );
               ctx.restore();
             }
-          });
+          }
 
-          if (alive > 0) {
-            frameId = requestAnimationFrame(animate);
+          if (elapsed < durationMs && aliveCount > 0) {
+            window.requestAnimationFrame(drawFrame);
           } else {
-            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-            window.removeEventListener("resize", resize);
-            cancelAnimationFrame(frameId);
+            window.removeEventListener("resize", resizeCanvas);
+            canvas.remove();
           }
         }
 
-        frameId = requestAnimationFrame(animate);
+        window.requestAnimationFrame(drawFrame);
       }
 
-      /* 실행 */
+      /* -------------------------------------------------------
+         7. 실행
+         ------------------------------------------------------- */
+      buildGuillochePattern("pattern-lines-front", false);
+      buildGuillochePattern("pattern-lines-back", true);
       renderProfile();
-      runTypingEffect();
-      setTimeout(launchConfettiOnce, 220);
+      runIntroTyping();
+      launchConfettiOnce();
     })();
   </script>
 </body>
