@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>손동욱 — 웹 명함</title>
+  <style>
+    :root {
+      --primary: #1F3A5F;
+      --primary-light: #2E5283;
+      --primary-soft: rgba(31, 58, 95, 0.06);
+      --primary-border: rgba(31, 58, 95, 0.12);
+      --text-main: #182230;
+      --text-sub: #536173;
+      --text-muted: #8492A6;
+      --card-bg: rgba(255, 255, 255, 0.94);
+      --card-border: rgba(255, 255, 255, 0.85);
+      --shadow-ambient:
+        0 4px 12px rgba(31, 58, 95, 0.04),
+        0 18px 40px -10px rgba(31, 58, 95, 0.09),
+        0 32px 64px -20px rgba(31, 58, 95, 0.07);
+      --shadow-hover:
+        0 6px 16px rgba(31, 58, 95, 0.05),
+        0 24px 48px -12px rgba(31, 58, 95, 0.12),
+        0 40px 72px -24px rgba(31, 58, 95, 0.09);
+      --radius-card: 28px;
+      --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+      --dur-smooth: 0.42s;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 18px 28px;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(219, 234, 254, 0.85) 0%, transparent 50%),
+        radial-gradient(circle at 85% 20%, rgba(243, 232, 255, 0.75) 0%, transparent 50%),
+        radial-gradient(circle at 50% 90%, rgba(224, 242, 254, 0.8) 0%, transparent 55%),
+        linear-gradient(145deg, #F6F8FC 0%, #EEF2F9 52%, #F4F1FA 100%);
+      position: relative;
+    }
+
+    /* 꽃가루 캔버스 */
+    #confetti-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    .page-wrap {
+      width: 100%;
+      max-width: 400px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* 3D 원근 무대 */
+    .card-scene {
+      width: 100%;
+      perspective: 1400px;
+      -webkit-perspective: 1400px;
+    }
+
+    /* 마우스/기울기 틸트 래퍼 */
+    .card-tilt {
+      width: 100%;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      transition: transform var(--dur-smooth) var(--ease-smooth);
+      will-change: transform;
+    }
+
+    /* 클릭 3D 뒤집기 래퍼 */
+    .card-flipper {
+      width: 100%;
+      display: grid;
+      transform-style: preserve-3d;
+      -webkit-transform-style: preserve-3d;
+      transition: transform 0.45s var(--ease-smooth);
+      cursor: pointer;
+      outline: none;
+      border-radius: var(--radius-card);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .card-flipper.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .card-flipper:focus-visible .card-face {
+      box-shadow: 0 0 0 3px rgba(31, 58, 95, 0.25), var(--shadow-hover);
+    }
+
+    /* 앞면·뒷면 공통 (Grid 1/1 겹침으로 자동 높이 동기화 -> 잘림 방지) */
+    .card-face {
+      grid-area: 1 / 1;
+      width: 100%;
+      position: relative;
+      border-radius: var(--radius-card);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow-ambient);
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      overflow: hidden;
+      transition: box-shadow var(--dur-smooth) var(--ease-smooth);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .card-scene:hover .card-face {
+      box-shadow: var(--shadow-hover);
+    }
+
+    /* 미세한 카드 상단 포인트 라인 */
+    .card-face::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary) 0%, #4A73A8 60%, #89A8D0 100%);
+      opacity: 0.9;
+      z-index: 2;
+    }
+
+    /* 빛 반사(Glare) 레이어 */
+    .card-glare {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0;
+      background: radial-gradient(
+        circle 260px at var(--glare-x, 50%) var(--glare-y, 50%),
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.14) 42%,
+        transparent 75%
+      );
+      transition: opacity var(--dur-smooth) var(--ease-smooth);
+      mix-blend-mode: overlay;
+    }
+
+    .card-tilt.is-tilting .card-glare {
+      opacity: 1;
+    }
+
+    /* ================= 앞면 ================= */
+    .card-front {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 56px 32px 52px;
+      transform: rotateY(0deg);
+    }
+
+    .avatar-ring {
+      width: 132px;
+      height: 132px;
+      padding: 5px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(31, 58, 95, 0.18), rgba(255, 255, 255, 0.95));
+      box-shadow:
+        0 10px 28px -8px rgba(31, 58, 95, 0.16),
+        inset 0 1px 2px rgba(255, 255, 255, 0.9);
+      margin-bottom: 30px;
+      flex-shrink: 0;
+    }
+
+    .avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+      background-color: #DCE7F5;
+    }
+
+    .role-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 16px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary-border);
+      color: var(--primary);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      margin-bottom: 18px;
+    }
+
+    .profile-name {
+      font-size: 2.125rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      color: var(--primary);
+      min-height: 2.6rem;
+      margin-bottom: 14px;
+    }
+
+    .front-divider {
+      width: 32px;
+      height: 2px;
+      border-radius: 2px;
+      background: rgba(31, 58, 95, 0.18);
+      margin: 4px auto 20px;
+    }
+
+    .profile-tagline {
+      font-size: 1.0625rem;
+      font-weight: 400;
+      line-height: 1.6;
+      letter-spacing: -0.015em;
+      color: var(--text-sub);
+      min-height: 1.75rem;
+      word-break: keep-all;
+    }
+
+    /* 타이핑 커서 */
+    .typing-cursor::after {
+      content: "";
+      display: inline-block;
+      width: 2px;
+      height: 0.95em;
+      background-color: var(--primary);
+      margin-left: 3px;
+      vertical-align: -0.1em;
+      animation: blink 0.8s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ================= 뒷면 ================= */
+    .card-back {
+      transform: rotateY(180deg);
+      padding: 38px 28px 34px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 26px;
+      text-align: left;
+    }
+
+    .back-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--primary-border);
+    }
+
+    .back-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: var(--primary);
+    }
+
+    .back-role {
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+    }
+
+    .section-group {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .section-block {
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    /* 강점 칩 */
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip-strength {
+      padding: 7px 14px;
+      border-radius: 10px;
+      background: var(--primary-soft);
+      color: var(--primary);
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    /* 쓰는 도구 칩 */
+    .chip-tool {
+      padding: 6px 12px;
+      border-radius: 9px;
+      background: #F8FAFC;
+      border: 1px solid rgba(31, 58, 95, 0.11);
+      color: var(--text-sub);
+      font-size: 0.8125rem;
+      font-weight: 500;
+      letter-spacing: -0.005em;
+    }
+
+    /* 해 본 일 리스트 */
+    .exp-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .exp-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-left: 13px;
+      border-left: 2px solid rgba(31, 58, 95, 0.16);
+    }
+
+    .exp-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .exp-title {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.02em;
+    }
+
+    .exp-year {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--primary);
+      opacity: 0.78;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .exp-desc {
+      font-size: 0.84375rem;
+      line-height: 1.45;
+      color: var(--text-sub);
+      letter-spacing: -0.01em;
+      word-break: keep-all;
+    }
+
+    /* 포트폴리오 단추 */
+    .portfolio-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 15px 20px;
+      border-radius: 14px;
+      background: var(--primary);
+      color: #FFFFFF;
+      text-decoration: none;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      box-shadow: 0 8px 20px -8px rgba(31, 58, 95, 0.45);
+      transition:
+        background-color var(--dur-smooth) var(--ease-smooth),
+        transform var(--dur-smooth) var(--ease-smooth),
+        box-shadow var(--dur-smooth) var(--ease-smooth);
+    }
+
+    .portfolio-btn:hover {
+      background: var(--primary-light);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 24px -8px rgba(31, 58, 95, 0.5);
+    }
+
+    .portfolio-btn:active {
+      transform: translateY(0);
+    }
+
+    .portfolio-btn svg {
+      width: 16px;
+      height: 16px;
+      transition: transform var(--dur-smooth) var(--ease-smooth);
+    }
+
+    .portfolio-btn:hover svg {
+      transform: translate(2px, -2px);
+    }
+
+    /* 카드 아래 안내 버튼 */
+    .flip-hint {
+      margin-top: 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(31, 58, 95, 0.1);
+      background: rgba(255, 255, 255, 0.62);
+      color: var(--primary);
+      font-size: 0.84375rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition:
+        background-color var(--dur-smooth) var(--ease-smooth),
+        transform var(--dur-smooth) var(--ease-smooth),
+        box-shadow var(--dur-smooth) var(--ease-smooth);
+    }
+
+    .flip-hint:hover {
+      background: rgba(255, 255, 255, 0.92);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px -6px rgba(31, 58, 95, 0.14);
+    }
+
+    .flip-hint svg {
+      width: 15px;
+      height: 15px;
+      opacity: 0.8;
+    }
+
+    /* 맨 아래 크레딧 */
+    .page-footer {
+      margin-top: 28px;
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: -0.01em;
+      line-height: 1.5;
+      word-break: keep-all;
+    }
+
+    /* PC 화면 여유 여백 보정 */
+    @media (min-width: 480px) {
+      .page-wrap {
+        max-width: 420px;
+      }
+
+      .card-front {
+        padding: 64px 40px 60px;
+      }
+
+      .card-back {
+        padding: 42px 36px 38px;
+      }
+    }
+
+    /* 움직임 줄이기 설정 대응 */
+    @media (prefers-reduced-motion: reduce) {
+      .card-tilt,
+      .card-flipper,
+      .card-face,
+      .card-glare,
+      .portfolio-btn,
+      .portfolio-btn svg,
+      .flip-hint {
+        transition: none !important;
+        animation: none !important;
+      }
+
+      .typing-cursor::after {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+
+  <main class="page-wrap">
+    <div class="card-scene" id="card-scene">
+      <div class="card-tilt" id="card-tilt">
+        <div
+          class="card-flipper"
+          id="card-flipper"
+          role="button"
+          tabindex="0"
+          aria-pressed="false"
+          aria-label="명함 뒤집기"
+        >
+          <!-- 앞면 -->
+          <section class="card-face card-front" aria-label="명함 앞면">
+            <div class="card-glare" aria-hidden="true"></div>
+            <div class="avatar-ring">
+              <img id="avatar-img" class="avatar-img" src="" alt="" />
+            </div>
+            <span id="front-role" class="role-badge"></span>
+            <h1 id="front-name" class="profile-name"></h1>
+            <div class="front-divider" aria-hidden="true"></div>
+            <p id="front-tagline" class="profile-tagline"></p>
+          </section>
+
+          <!-- 뒷면 -->
+          <section class="card-face card-back" aria-label="명함 뒷면">
+            <div class="card-glare" aria-hidden="true"></div>
+
+            <header class="back-header">
+              <h2 id="back-name" class="back-name"></h2>
+              <span id="back-role" class="back-role"></span>
+            </header>
+
+            <div class="section-group">
+              <div class="section-block">
+                <h3 class="section-label">강점</h3>
+                <div id="strengths-list" class="chip-list"></div>
+              </div>
+
+              <div class="section-block">
+                <h3 class="section-label">쓰는 도구</h3>
+                <div id="tools-list" class="chip-list"></div>
+              </div>
+
+              <div class="section-block">
+                <h3 class="section-label">해 본 일</h3>
+                <ul id="experiences-list" class="exp-list"></ul>
+              </div>
+            </div>
+
+            <a
+              id="portfolio-link"
+              class="portfolio-btn"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>포트폴리오 보기</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7 17L17 7" />
+                <path d="M7 7h10v10" />
+              </svg>
+            </a>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <button type="button" id="flip-hint" class="flip-hint" aria-label="명함 눌러서 뒤집기">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+        <path d="M8 16H3v5" />
+      </svg>
+      <span>눌러서 뒤집기</span>
+    </button>
+
+    <footer class="page-footer">
+      이 페이지의 그림과 코드는 AI의 도움을 받아 만들었습니다
+    </footer>
+  </main>
+
+  <script>
+    const PROFILE = {
+      name: "손동욱",
+      role: "기획",
+      tagline: "매 순간 배우는 중",
+      avatar: "avatar.png",
+      strengths: ["도전", "인내", "생각"],
+      tools: ["GPT", "Claude", "Gemini", "Adobe PPr"],
+      experiences: [
+        {
+          title: "찬이왔다",
+          description: "배달전문 밀키트 사업",
+          year: "2024"
+        },
+        {
+          title: "영상 독학",
+          description: "소규모 유튜브 편집 외주",
+          year: "2019~현재"
+        },
+        {
+          title: "AI 부트캠프",
+          description: "경남대학교에서 교육 받음",
+          year: "2026"
+        }
+      ],
+      portfolioUrl: "https://sites.google.com/view/gonggonggogo/%ED%99%88"
+    };
+
+    (function initCard() {
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const cardScene = document.getElementById("card-scene");
+      const cardTilt = document.getElementById("card-tilt");
+      const cardFlipper = document.getElementById("card-flipper");
+      const flipHint = document.getElementById("flip-hint");
+      const portfolioLink = document.getElementById("portfolio-link");
+
+      const avatarImg = document.getElementById("avatar-img");
+      const frontRole = document.getElementById("front-role");
+      const frontName = document.getElementById("front-name");
+      const frontTagline = document.getElementById("front-tagline");
+      const backName = document.getElementById("back-name");
+      const backRole = document.getElementById("back-role");
+      const strengthsList = document.getElementById("strengths-list");
+      const toolsList = document.getElementById("tools-list");
+      const experiencesList = document.getElementById("experiences-list");
+      const glares = document.querySelectorAll(".card-glare");
+
+      /* 1. PROFILE 데이터로 화면 렌더링 */
+      function renderProfile() {
+        document.title = `${PROFILE.name} — ${PROFILE.role}`;
+
+        avatarImg.src = PROFILE.avatar;
+        avatarImg.alt = `${PROFILE.name} 아바타`;
+
+        frontRole.textContent = PROFILE.role;
+        backName.textContent = PROFILE.name;
+        backRole.textContent = PROFILE.role;
+        portfolioLink.href = PROFILE.portfolioUrl;
+
+        strengthsList.innerHTML = "";
+        PROFILE.strengths.forEach((item) => {
+          const span = document.createElement("span");
+          span.className = "chip-strength";
+          span.textContent = item;
+          strengthsList.appendChild(span);
+        });
+
+        toolsList.innerHTML = "";
+        PROFILE.tools.forEach((tool) => {
+          const span = document.createElement("span");
+          span.className = "chip-tool";
+          span.textContent = tool;
+          toolsList.appendChild(span);
+        });
+
+        experiencesList.innerHTML = "";
+        PROFILE.experiences.forEach((exp) => {
+          const li = document.createElement("li");
+          li.className = "exp-item";
+
+          const top = document.createElement("div");
+          top.className = "exp-top";
+
+          const title = document.createElement("span");
+          title.className = "exp-title";
+          title.textContent = exp.title;
+
+          const year = document.createElement("span");
+          year.className = "exp-year";
+          year.textContent = exp.year;
+
+          const desc = document.createElement("p");
+          desc.className = "exp-desc";
+          desc.textContent = exp.description;
+
+          top.appendChild(title);
+          top.appendChild(year);
+          li.appendChild(top);
+          li.appendChild(desc);
+          experiencesList.appendChild(li);
+        });
+      }
+
+      /* 2. 이름 및 한 줄 소개 타이핑 효과 */
+      function typeText(el, text, speed) {
+        return new Promise((resolve) => {
+          el.textContent = "";
+          el.classList.add("typing-cursor");
+          const chars = Array.from(text);
+          let idx = 0;
+
+          function step() {
+            if (idx < chars.length) {
+              el.textContent += chars[idx];
+              idx += 1;
+              setTimeout(step, speed);
+            } else {
+              el.classList.remove("typing-cursor");
+              resolve();
+            }
+          }
+          step();
+        });
+      }
+
+      async function runTypingEffect() {
+        if (reducedMotion) {
+          frontName.textContent = PROFILE.name;
+          frontTagline.textContent = PROFILE.tagline;
+          return;
+        }
+        await typeText(frontName, PROFILE.name, 110);
+        await new Promise((r) => setTimeout(r, 160));
+        await typeText(frontTagline, PROFILE.tagline, 65);
+      }
+
+      /* 3. 카드 뒤집기 인터랙션 */
+      let isFlipped = false;
+
+      function toggleFlip() {
+        isFlipped = !isFlipped;
+        cardFlipper.classList.toggle("is-flipped", isFlipped);
+        cardFlipper.setAttribute("aria-pressed", String(isFlipped));
+      }
+
+      cardFlipper.addEventListener("click", toggleFlip);
+      cardFlipper.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleFlip();
+        }
+      });
+
+      flipHint.addEventListener("click", toggleFlip);
+
+      /* 포트폴리오 단추 클릭 시 카드 뒤집힘 방지 */
+      portfolioLink.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+
+      /* 4. 마우스 & 모바일 기울기 3D 틸트 + 빛 반사 */
+      function applyTilt(rotateX, rotateY, glareX, glareY) {
+        cardTilt.classList.add("is-tilting");
+        cardTilt.style.transform = `rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`;
+        glares.forEach((glare) => {
+          glare.style.setProperty("--glare-x", `${glareX.toFixed(1)}%`);
+          glare.style.setProperty("--glare-y", `${glareY.toFixed(1)}%`);
+        });
+      }
+
+      function resetTilt() {
+        cardTilt.classList.remove("is-tilting");
+        cardTilt.style.transform = "rotateX(0deg) rotateY(0deg)";
+      }
+
+      if (!reducedMotion) {
+        /* 데스크톱 마우스 */
+        cardScene.addEventListener("pointermove", (e) => {
+          if (e.pointerType !== "mouse") return;
+          const rect = cardScene.getBoundingClientRect();
+          const px = (e.clientX - rect.left) / rect.width;
+          const py = (e.clientY - rect.top) / rect.height;
+
+          const maxTilt = 7.5;
+          const rotateY = (px - 0.5) * (maxTilt * 2);
+          const rotateX = (0.5 - py) * (maxTilt * 2);
+
+          applyTilt(rotateX, rotateY, px * 100, py * 100);
+        });
+
+        cardScene.addEventListener("pointerleave", resetTilt);
+
+        /* 모바일 기기 기울기 (DeviceOrientation) */
+        const handleOrientation = (e) => {
+          if (e.beta === null || e.gamma === null) return;
+          const gamma = Math.max(-25, Math.min(25, e.gamma));
+          const beta = Math.max(-25, Math.min(25, e.beta - 45));
+
+          const rotateY = (gamma / 25) * 6.5;
+          const rotateX = -(beta / 25) * 6.5;
+          const glareX = 50 + (gamma / 25) * 35;
+          const glareY = 50 + (beta / 25) * 35;
+
+          applyTilt(rotateX, rotateY, glareX, glareY);
+        };
+
+        if (window.DeviceOrientationEvent) {
+          if (typeof DeviceOrientationEvent.requestPermission === "function") {
+            const requestOnce = () => {
+              DeviceOrientationEvent.requestPermission()
+                .then((state) => {
+                  if (state === "granted") {
+                    window.addEventListener("deviceorientation", handleOrientation, { passive: true });
+                  }
+                })
+                .catch(() => {});
+              window.removeEventListener("touchstart", requestOnce);
+            };
+            window.addEventListener("touchstart", requestOnce, { once: true, passive: true });
+          } else {
+            window.addEventListener("deviceorientation", handleOrientation, { passive: true });
+          }
+        }
+      }
+
+      /* 5. 첫 방문 시 한 번만 은은하게 터지는 꽃가루 */
+      function launchConfettiOnce() {
+        if (reducedMotion) return;
+
+        const canvas = document.getElementById("confetti-canvas");
+        const ctx = canvas.getContext("2d");
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+        function resize() {
+          canvas.width = window.innerWidth * dpr;
+          canvas.height = window.innerHeight * dpr;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        resize();
+        window.addEventListener("resize", resize);
+
+        const colors = ["#1F3A5F", "#4A73A8", "#93B5E1", "#C4B5FD", "#F9A8D4", "#99D5C9"];
+        const originX = window.innerWidth / 2;
+        const originY = window.innerHeight * 0.42;
+        const particles = Array.from({ length: 42 }, () => {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 3 + Math.random() * 5.5;
+          return {
+            x: originX,
+            y: originY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 3.2,
+            size: 4 + Math.random() * 4.5,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            rotation: Math.random() * 360,
+            vRot: (Math.random() - 0.5) * 10,
+            alpha: 1,
+            gravity: 0.14 + Math.random() * 0.05,
+            drag: 0.985
+          };
+        });
+
+        let frameId;
+        function animate() {
+          ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+          let alive = 0;
+
+          particles.forEach((p) => {
+            p.vx *= p.drag;
+            p.vy = p.vy * p.drag + p.gravity;
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rotation += p.vRot;
+            p.alpha -= 0.014;
+
+            if (p.alpha > 0) {
+              alive += 1;
+              ctx.save();
+              ctx.globalAlpha = Math.max(0, p.alpha);
+              ctx.translate(p.x, p.y);
+              ctx.rotate((p.rotation * Math.PI) / 180);
+              ctx.fillStyle = p.color;
+              ctx.fillRect(-p.size / 2, -p.size / 3, p.size, p.size * 0.65);
+              ctx.restore();
+            }
+          });
+
+          if (alive > 0) {
+            frameId = requestAnimationFrame(animate);
+          } else {
+            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            window.removeEventListener("resize", resize);
+            cancelAnimationFrame(frameId);
+          }
+        }
+
+        frameId = requestAnimationFrame(animate);
+      }
+
+      /* 실행 */
+      renderProfile();
+      runTypingEffect();
+      setTimeout(launchConfettiOnce, 220);
+    })();
+  </script>
+</body>
+</html>
